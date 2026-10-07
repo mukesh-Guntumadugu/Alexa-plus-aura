@@ -25,7 +25,23 @@ Bee already has several powerful core features. We want to build something that 
 - Integrations/actions (connects memory to calendar/email and other AI tools).
 
 ## Ideas & Brainstorming
-- *To be determined...*
+- **Developer Experience (Priority):** A Bee integration that monitors the user's coding discussions, automatically extracting insights, action items, and relevant code snippets to provide context to the IDE via MCP.
 
 ## Setup
-- *To be determined...*
+We have initialized a basic MCP Server using Node.js and TypeScript.
+
+### Installation
+```bash
+npm install
+```
+
+### Running the MCP Server
+```bash
+npm start
+```
+
+This will run the MCP server over standard input/output (stdio), which allows Bee or an AI agent to communicate with the server to retrieve live wearable data.
+
+## Project Structure
+- `src/index.ts`: The main MCP server file that exposes tools (e.g., `get_bee_data_summary`).
+- `package.json`: Contains project metadata and scripts.
