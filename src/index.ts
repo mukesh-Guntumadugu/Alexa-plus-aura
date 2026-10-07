@@ -5,8 +5,9 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
+const BEE_PROXY_URL = "http://127.0.0.1:8787";
+
 // Initialize the MCP Server
-// This server will connect to the Bee Wearable AI ecosystem and provide custom tools
 const server = new Server(
   {
     name: "bee-enhancements-mcp",
@@ -19,28 +20,38 @@ const server = new Server(
   }
 );
 
-// Define tools to be exposed via MCP
+// Define tools exposed via MCP
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "get_bee_data_summary",
-        description: "Retrieve a summary of the latest Bee data. This could be used for education, developer experience, or productivity.",
+        name: "bee_search_conversations",
+        description: "Search your Bee conversations using semantic/neural search. Great for finding past coding discussions or architecture decisions.",
         inputSchema: {
           type: "object",
           properties: {
-            timeframe: {
+            query: {
               type: "string",
-              description: "The timeframe for the data (e.g., 'today', 'last_week')",
-              enum: ["today", "yesterday", "last_week"]
-            },
-            context: {
-              type: "string",
-              description: "The context to filter by (e.g., 'education', 'developer_experience', 'productivity')",
-              enum: ["education", "developer_experience", "productivity", "all"]
+              description: "The search query (e.g., 'What did we decide about the database schema?')"
             }
           },
-          required: ["timeframe"]
+          required: ["query"]
+        }
+      },
+      {
+        name: "bee_get_facts",
+        description: "Retrieve facts and personal memory stored by Bee.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        }
+      },
+      {
+        name: "bee_get_daily",
+        description: "Retrieve your daily brief and memories for today.",
+        inputSchema: {
+          type: "object",
+          properties: {},
         }
       }
     ]
@@ -51,28 +62,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  if (name === "get_bee_data_summary") {
-    const timeframe = args?.timeframe as string;
-    const context = args?.context as string || "all";
+  try {
+    if (name === "bee_search_conversations") {
+      const query = args?.query as string;
+      const response = await fetch(`${BEE_PROXY_URL}/v1/search/conversations/neural`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, limit: 10 }),
+      });
+      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+      };
+    }
 
-    // TODO: Connect to actual Bee device/Cloud API here
-    // For now, we return mock data demonstrating how the integration would work
+    if (name === "bee_get_facts") {
+      const response = await fetch(`${BEE_PROXY_URL}/v1/facts`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+      };
+    }
 
+    if (name === "bee_get_daily") {
+      const response = await fetch(`${BEE_PROXY_URL}/v1/daily`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+      };
+    }
+
+    throw new Error(`Unknown tool: ${name}`);
+  } catch (error: any) {
     return {
-      content: [
-        {
-          type: "text",
-          text: `[MOCK BEE DATA] Summary for ${timeframe} in context '${context}':
-- 3 interesting conversations recorded.
-- 2 action items identified for productivity.
-- 1 developer insight extracted from coding discussions.
-(This data will eventually come from the real Bee device/API)`
-        }
-      ]
+      content: [{ type: "text", text: `Error connecting to Bee Proxy: ${error.message}. Is the proxy running (bee proxy --port 8787)?` }],
+      isError: true
     };
   }
-
-  throw new Error(`Unknown tool: ${name}`);
 });
 
 // Start the server using stdio transport
